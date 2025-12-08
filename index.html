@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ImagePuzzler</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <h1 class="header-title">ImagePuzzler<span id="project-name-display"></span></h1>
+        </header>
+
+        <!-- Thumbnail Gallery -->
+        <section class="card gallery-card">
+            <h2 class="card-heading">Images (<span id="image-count">0</span>)</h2>
+            <div class="gallery-container" id="gallery-container">
+                <div class="add-image-card" id="add-image-card">
+                    <span class="add-icon">+</span>
+                    <span class="add-text">Add Image</span>
+                </div>
+            </div>
+            <input type="file" id="file-input" accept="image/*" multiple hidden>
+        </section>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Canvas Area -->
+            <section class="card canvas-card" id="canvas-section">
+                <div class="canvas-container" id="canvas-container">
+                    <div class="empty-state" id="empty-state">
+                        <p>Add images to get started</p>
+                    </div>
+                    <canvas id="editor-canvas"></canvas>
+                    <div class="answer-overlay" id="answer-overlay"></div>
+                </div>
+            </section>
+
+            <!-- Controls Panel -->
+            <section class="card controls-card" id="controls-section">
+                <div class="control-section">
+                    <p class="instructions">Click and drag on the image to select a region</p>
+                </div>
+
+                <div class="control-section">
+                    <label class="control-label">Question</label>
+                    <input type="text" id="question-input" class="text-input" placeholder="Enter question text">
+                    <label class="control-label small">Size</label>
+                    <input type="number" id="question-size" class="number-input" value="72" min="10" max="200">
+                </div>
+
+                <div class="control-section">
+                    <label class="control-label">Answer</label>
+                    <input type="text" id="answer-input" class="text-input" placeholder="Enter answer text">
+                    <label class="control-label small">Size</label>
+                    <input type="number" id="answer-size" class="number-input" value="72" min="10" max="200">
+                    <label class="control-label small">Color</label>
+                    <input type="color" id="answer-color" class="color-input" value="#ffffff">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="answer-outline" checked>
+                        Add outline (better visibility)
+                    </label>
+                </div>
+
+                <div class="control-section">
+                    <button class="btn btn-secondary" id="preview-btn">Preview Animation</button>
+                </div>
+
+                <div class="control-section">
+                    <button class="btn btn-primary" id="save-project-btn">Save Project</button>
+                </div>
+
+                <div class="control-section">
+                    <button class="btn btn-primary" id="generate-game-btn">Export Puzzler</button>
+                </div>
+
+                <div class="control-section">
+                    <button class="btn btn-danger" id="reset-btn">Reset All</button>
+                </div>
+            </section>
+        </div>
+
+        <!-- Project Settings -->
+        <section class="card settings-card">
+            <button class="btn btn-secondary full-width" id="load-project-btn">Load Project</button>
+            <input type="file" id="load-project-input" accept=".zip" hidden>
+
+            <hr class="divider">
+
+            <div class="settings-grid">
+                <div class="setting-item">
+                    <label class="control-label">Project Name</label>
+                    <input type="text" id="project-name" class="text-input" placeholder="My Quiz Project">
+                </div>
+
+                <div class="setting-item">
+                    <label class="control-label">Game Title</label>
+                    <input type="text" id="game-title" class="text-input" placeholder="Uses project name if empty">
+                </div>
+
+                <div class="setting-item full-width">
+                    <label class="control-label">Explanation</label>
+                    <textarea id="game-explanation" class="text-input textarea" placeholder="Instructions shown on game's title page"></textarea>
+                </div>
+
+                <div class="setting-item">
+                    <label class="control-label">Next Button Label</label>
+                    <input type="text" id="next-button-label" class="text-input" placeholder="Leave empty to click anywhere">
+                </div>
+
+                <div class="setting-item">
+                    <label class="control-label">Progress Label</label>
+                    <input type="text" id="progress-label" class="text-input" placeholder="Slide {current} of {total}">
+                </div>
+
+                <div class="setting-item full-width">
+                    <label class="control-label">Completion Message</label>
+                    <input type="text" id="completion-message" class="text-input" placeholder="Congratulations! You've completed the quiz.">
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Preview Modal -->
+    <div class="modal" id="preview-modal">
+        <button class="modal-close" id="modal-close">&times;</button>
+        <div class="preview-container" id="preview-container"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
