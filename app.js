@@ -8,10 +8,75 @@ class ImagePuzzler {
         this.isDrawing = false;
         this.dragStart = { x: 0, y: 0 };
         this.answerPosition = { x: 50, y: 50 };
+        this.dialogResolve = null;
 
         this.initElements();
         this.initEventListeners();
         this.updateUI();
+    }
+
+    // Custom dialog methods
+    showDialog(message, showInput = false, defaultValue = '', showCancel = false) {
+        return new Promise((resolve) => {
+            this.dialogResolve = resolve;
+
+            const overlay = document.getElementById('dialog-overlay');
+            const messageEl = document.getElementById('dialog-message');
+            const inputEl = document.getElementById('dialog-input');
+            const buttonsEl = document.getElementById('dialog-buttons');
+
+            messageEl.innerHTML = message;
+
+            inputEl.style.display = showInput ? 'block' : 'none';
+            inputEl.value = defaultValue;
+
+            buttonsEl.innerHTML = '';
+
+            if (showCancel) {
+                const cancelBtn = document.createElement('button');
+                cancelBtn.className = 'dialog-btn dialog-btn-secondary';
+                cancelBtn.textContent = 'Cancel';
+                cancelBtn.onclick = () => this.closeDialog(null);
+                buttonsEl.appendChild(cancelBtn);
+            }
+
+            const okBtn = document.createElement('button');
+            okBtn.className = 'dialog-btn dialog-btn-primary';
+            okBtn.textContent = 'OK';
+            okBtn.onclick = () => this.closeDialog(showInput ? inputEl.value : true);
+            buttonsEl.appendChild(okBtn);
+
+            overlay.classList.add('visible');
+
+            if (showInput) {
+                setTimeout(() => inputEl.focus(), 100);
+                inputEl.onkeydown = (e) => {
+                    if (e.key === 'Enter') this.closeDialog(inputEl.value);
+                    if (e.key === 'Escape' && showCancel) this.closeDialog(null);
+                };
+            }
+        });
+    }
+
+    closeDialog(result) {
+        const overlay = document.getElementById('dialog-overlay');
+        overlay.classList.remove('visible');
+        if (this.dialogResolve) {
+            this.dialogResolve(result);
+            this.dialogResolve = null;
+        }
+    }
+
+    showAlert(message) {
+        return this.showDialog(message, false, '', false);
+    }
+
+    showPrompt(message, defaultValue = '') {
+        return this.showDialog(message, true, defaultValue, true);
+    }
+
+    showConfirm(message) {
+        return this.showDialog(message, false, '', true);
     }
 
     initElements() {
@@ -457,10 +522,10 @@ class ImagePuzzler {
         document.title = name ? `ImagePuzzler - ${name}` : 'ImagePuzzler';
     }
 
-    showPreview() {
+    async showPreview() {
         const image = this.images[this.currentIndex];
         if (!image || !image.selection) {
-            alert('Please select an image and draw a selection rectangle first.');
+            await this.showAlert('Please select an image and draw a selection rectangle first.');
             return;
         }
 
@@ -596,7 +661,7 @@ class ImagePuzzler {
 
     async saveProject() {
         if (this.images.length === 0) {
-            alert('No images to save. Please add some images first.');
+            await this.showAlert('No images to save. Please add some images first.');
             return;
         }
 
@@ -633,9 +698,12 @@ class ImagePuzzler {
 
         const blob = await zip.generateAsync({ type: 'blob' });
         const defaultName = (this.projectName.value || 'project').replace(/\.zip$/i, '');
-        const filename = prompt('Save project as:', defaultName);
+        const filename = await this.showPrompt('Save project as:', defaultName);
         if (filename === null) return; // User cancelled
         this.downloadBlob(blob, (filename || 'project') + '.zip');
+
+        const projectName = filename || 'project';
+        await this.showAlert(`Project saved successfully!<br><br><strong>${projectName}</strong><br>${this.images.length} image${this.images.length !== 1 ? 's' : ''}`);
     }
 
     async loadProject(file) {
@@ -704,25 +772,26 @@ class ImagePuzzler {
             this.updateUI();
             this.renderGallery();
 
-            alert('Project loaded successfully!');
+            const projectName = projectData.projectName || 'Untitled Project';
+            await this.showAlert(`Project loaded successfully!<br><br><strong>${projectName}</strong><br>${this.images.length} image${this.images.length !== 1 ? 's' : ''}`);
         } catch (error) {
             console.error('Error loading project:', error);
-            alert('Error loading project. Please make sure the file is a valid ImagePuzzler project.');
+            await this.showAlert('Error loading project. Please make sure the file is a valid ImagePuzzler project.');
         }
 
         this.loadProjectInput.value = '';
     }
 
-    generateGame() {
+    async generateGame() {
         if (this.images.length === 0) {
-            alert('No images to generate a game. Please add some images first.');
+            await this.showAlert('No images to generate a game. Please add some images first.');
             return;
         }
 
         // Check if all images have selections
         const missingSelections = this.images.filter(img => !img.selection);
         if (missingSelections.length > 0) {
-            alert(`Please draw selection rectangles on all images. ${missingSelections.length} image(s) are missing selections.`);
+            await this.showAlert(`Please draw selection rectangles on all images. ${missingSelections.length} image${missingSelections.length !== 1 ? 's are' : ' is'} missing selections.`);
             return;
         }
 
@@ -1101,8 +1170,9 @@ class ImagePuzzler {
         URL.revokeObjectURL(url);
     }
 
-    resetAll() {
-        if (!confirm('Are you sure you want to reset everything? This cannot be undone.')) {
+    async resetAll() {
+        const confirmed = await this.showConfirm('Are you sure you want to reset everything? This cannot be undone.');
+        if (!confirmed) {
             return;
         }
 
