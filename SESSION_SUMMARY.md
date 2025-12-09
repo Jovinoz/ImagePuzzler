@@ -185,3 +185,4 @@ echo "    </script></body></html>" >> ImagePuzzler-Builder.html
 - More reveal animation types
 - Sound effects
 - Keyboard navigation in generated games
+- **Video support** - Drop video file, select frame timestamp, video plays up to that point then pauses for the quiz. Challenges: video file size makes single-file export very large. Possible solutions: extract clip, convert to GIF, or keep video as separate file.
