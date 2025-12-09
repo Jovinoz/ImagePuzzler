@@ -101,6 +101,7 @@ class ImagePuzzler {
         this.answerSize = document.getElementById('answer-size');
         this.answerColor = document.getElementById('answer-color');
         this.answerOutline = document.getElementById('answer-outline');
+        this.revealAnimation = document.getElementById('reveal-animation');
 
         // Buttons
         this.previewBtn = document.getElementById('preview-btn');
@@ -173,6 +174,7 @@ class ImagePuzzler {
         this.answerSize.addEventListener('input', () => this.updateCurrentImage());
         this.answerColor.addEventListener('input', () => this.updateCurrentImage());
         this.answerOutline.addEventListener('change', () => this.updateCurrentImage());
+        this.revealAnimation.addEventListener('change', () => this.updateCurrentImage());
 
         // Buttons
         this.previewBtn.addEventListener('click', () => this.showPreview());
@@ -216,7 +218,8 @@ class ImagePuzzler {
                         answerSize: 72,
                         answerColor: '#ffffff',
                         answerOutline: true,
-                        answerPosition: { x: 50, y: 50 }
+                        answerPosition: { x: 50, y: 50 },
+                        revealAnimation: 'fade'
                     });
 
                     if (this.currentIndex === -1) {
@@ -350,9 +353,11 @@ class ImagePuzzler {
             this.answerColor.value = image.answerColor || '#ffffff';
             this.answerOutline.checked = image.answerOutline !== false;
             this.answerPosition = image.answerPosition || { x: 50, y: 50 };
+            this.revealAnimation.value = image.revealAnimation || 'fade';
         } else {
             this.questionInput.value = '';
             this.answerInput.value = '';
+            this.revealAnimation.value = 'fade';
         }
     }
 
@@ -511,6 +516,7 @@ class ImagePuzzler {
         image.answerColor = this.answerColor.value;
         image.answerOutline = this.answerOutline.checked;
         image.answerPosition = { ...this.answerPosition };
+        image.revealAnimation = this.revealAnimation.value;
 
         this.redrawCanvas();
         this.renderGallery();
@@ -548,9 +554,10 @@ class ImagePuzzler {
             const croppedCtx = croppedCanvas.getContext('2d');
             croppedCtx.drawImage(img, sel.x, sel.y, sel.width, sel.height, 0, 0, sel.width, sel.height);
 
-            // Calculate display sizes
-            const maxSize = Math.min(window.innerWidth * 0.75, window.innerHeight * 0.6);
-            const croppedScale = Math.min(maxSize / sel.width, maxSize / sel.height, 1);
+            // Calculate display sizes - scale to fill viewport (both up and down)
+            const maxWidth = window.innerWidth * 0.75;
+            const maxHeight = window.innerHeight * 0.6;
+            const croppedScale = Math.min(maxWidth / sel.width, maxHeight / sel.height);
 
             const displayWidth = sel.width * croppedScale;
             const displayHeight = sel.height * croppedScale;
@@ -613,17 +620,19 @@ class ImagePuzzler {
 
             // Click to reveal
             let revealed = false;
+            const revealAnimation = image.revealAnimation || 'fade';
+
             const reveal = () => {
                 if (revealed) return;
                 revealed = true;
 
-                // Calculate transform for cropped to full position
-                const fullLeft = (window.innerWidth - img.width * fullScale) / 2;
-                const fullTop = (window.innerHeight - img.height * fullScale) / 2;
+                // Get actual position of full image from browser layout
+                const fullRect = fullImg.getBoundingClientRect();
 
-                const targetX = fullLeft + sel.x * fullScale;
-                const targetY = fullTop + sel.y * fullScale;
-                const targetScale = fullScale / croppedScale;
+                // Calculate target position based on actual full image position
+                const targetX = fullRect.left + (sel.x / img.width) * fullRect.width;
+                const targetY = fullRect.top + (sel.y / img.height) * fullRect.height;
+                const targetScale = (fullRect.width / img.width) / croppedScale;
 
                 const croppedRect = croppedImg.getBoundingClientRect();
                 const translateX = targetX - croppedRect.left;
@@ -634,18 +643,63 @@ class ImagePuzzler {
 
                 questionEl.style.opacity = '0';
 
-                setTimeout(() => {
-                    fullImg.style.opacity = '1';
-                }, 1200);
+                // Apply reveal animation based on type
+                // Cropped image takes 1.2s to move to position, so reveal starts after that
+                if (revealAnimation === 'fade') {
+                    setTimeout(() => {
+                        fullImg.style.opacity = '1';
+                    }, 1400);
+                    setTimeout(() => {
+                        croppedImg.style.visibility = 'hidden';
+                    }, 3200);
+                } else if (revealAnimation === 'blur') {
+                    // Blur animation - fade in blurred, then sharpen
+                    fullImg.style.filter = 'blur(20px)';
+                    fullImg.style.transition = 'opacity 1.5s ease-out';
+                    setTimeout(() => {
+                        fullImg.style.opacity = '1';
+                    }, 1400);
+                    setTimeout(() => {
+                        croppedImg.style.visibility = 'hidden';
+                        fullImg.style.transition = 'filter 1.5s ease-out';
+                        fullImg.style.filter = 'blur(0px)';
+                    }, 2900);
+                } else if (revealAnimation === 'box') {
+                    // Box expand using clip-path - starts after cropped image finishes moving
+                    const centerX = ((sel.x + sel.width/2) / img.width) * 100;
+                    const centerY = ((sel.y + sel.height/2) / img.height) * 100;
+                    const startW = (sel.width / img.width) * 50;
+                    const startH = (sel.height / img.height) * 50;
+                    setTimeout(() => {
+                        fullImg.style.clipPath = `inset(${centerY - startH}% ${100 - centerX - startW}% ${100 - centerY - startH}% ${centerX - startW}%)`;
+                        fullImg.style.opacity = '1';
+                        fullImg.style.transition = 'clip-path 2s ease-out';
+                        croppedImg.style.visibility = 'hidden';
+                        setTimeout(() => {
+                            fullImg.style.clipPath = 'inset(0% 0% 0% 0%)';
+                        }, 50);
+                    }, 1400);
+                } else if (revealAnimation === 'circle') {
+                    // Radial expand using clip-path - starts after cropped image finishes moving
+                    const centerX = ((sel.x + sel.width/2) / img.width) * 100;
+                    const centerY = ((sel.y + sel.height/2) / img.height) * 100;
+                    const startRadius = Math.max(sel.width, sel.height) / Math.max(img.width, img.height) * 50;
+                    setTimeout(() => {
+                        fullImg.style.clipPath = `circle(${startRadius}% at ${centerX}% ${centerY}%)`;
+                        fullImg.style.opacity = '1';
+                        fullImg.style.transition = 'clip-path 2s ease-out';
+                        croppedImg.style.visibility = 'hidden';
+                        setTimeout(() => {
+                            fullImg.style.clipPath = `circle(150% at ${centerX}% ${centerY}%)`;
+                        }, 50);
+                    }, 1400);
+                }
 
-                setTimeout(() => {
-                    croppedImg.style.visibility = 'hidden';
-                }, 2200);
-
+                const answerDelay = revealAnimation === 'blur' ? 4400 : 3200;
                 if (answerEl) {
                     setTimeout(() => {
                         answerEl.style.opacity = '1';
-                    }, 2000);
+                    }, answerDelay);
                 }
             };
 
@@ -683,7 +737,8 @@ class ImagePuzzler {
                 answerSize: img.answerSize,
                 answerColor: img.answerColor,
                 answerOutline: img.answerOutline,
-                answerPosition: img.answerPosition
+                answerPosition: img.answerPosition,
+                revealAnimation: img.revealAnimation || 'fade'
             }))
         };
 
@@ -697,12 +752,9 @@ class ImagePuzzler {
         }
 
         const blob = await zip.generateAsync({ type: 'blob' });
-        const defaultName = (this.projectName.value || 'project').replace(/\.zip$/i, '');
-        const filename = await this.showPrompt('Save project as:', defaultName);
-        if (filename === null) return; // User cancelled
-        this.downloadBlob(blob, (filename || 'project') + '.zip');
+        const projectName = this.projectName.value || 'Untitled Project';
+        this.downloadBlob(blob, projectName + '.zip');
 
-        const projectName = filename || 'project';
         await this.showAlert(`Project saved successfully!<br><br><strong>${projectName}</strong><br>${this.images.length} image${this.images.length !== 1 ? 's' : ''}`);
     }
 
@@ -755,7 +807,8 @@ class ImagePuzzler {
                             answerSize: imgData.answerSize,
                             answerColor: imgData.answerColor,
                             answerOutline: imgData.answerOutline,
-                            answerPosition: imgData.answerPosition
+                            answerPosition: imgData.answerPosition,
+                            revealAnimation: imgData.revealAnimation || 'fade'
                         });
                     };
                     img.src = dataUrl;
@@ -812,7 +865,8 @@ class ImagePuzzler {
                 answerSize: img.answerSize || 72,
                 answerColor: img.answerColor || '#ffffff',
                 answerOutline: img.answerOutline !== false,
-                answerPosition: img.answerPosition || { x: 50, y: 50 }
+                answerPosition: img.answerPosition || { x: 50, y: 50 },
+                revealAnimation: img.revealAnimation || 'fade'
             }))
         };
 
@@ -896,9 +950,6 @@ class ImagePuzzler {
         }
         .cropped-container.visible { opacity: 1; }
         .cropped-img {
-            max-width: 75vw;
-            max-height: 60vh;
-            object-fit: contain;
             cursor: pointer;
             transition: transform 1.2s ease-in-out, opacity 0.4s;
         }
@@ -1037,6 +1088,11 @@ class ImagePuzzler {
 
             if (nextBtn) nextBtn.classList.remove('visible');
 
+            // Reset full image styles for different animation types
+            fullImg.style.transform = '';
+            fullImg.style.clipPath = '';
+            fullImg.style.filter = '';
+
             // Update progress
             if (progress && progressLabel) {
                 progress.textContent = progressLabel
@@ -1054,9 +1110,16 @@ class ImagePuzzler {
                 ctx.drawImage(img, q.selection.x, q.selection.y, q.selection.width, q.selection.height, 0, 0, q.selection.width, q.selection.height);
                 croppedImg.src = canvas.toDataURL();
 
+                // Scale cropped image to fill viewport (both up and down)
+                const maxWidth = window.innerWidth * 0.75;
+                const maxHeight = window.innerHeight * 0.6;
+                const croppedDisplayScale = Math.min(maxWidth / q.selection.width, maxHeight / q.selection.height);
+                croppedImg.style.width = (q.selection.width * croppedDisplayScale) + 'px';
+                croppedImg.style.height = (q.selection.height * croppedDisplayScale) + 'px';
+
                 // Set question
                 questionText.textContent = q.question;
-                questionText.style.fontSize = q.questionSize + 'px';
+                questionText.style.fontSize = (q.questionSize * croppedDisplayScale) + 'px';
 
                 // Set full image
                 fullImg.src = q.dataUrl;
@@ -1090,23 +1153,15 @@ class ImagePuzzler {
             const answerText = document.getElementById('answer-text');
             const nextBtn = document.getElementById('next-btn');
 
-            // Calculate transform
+            // Calculate transform using actual full image position from browser layout
             const croppedRect = croppedImg.getBoundingClientRect();
-            const fullScale = Math.min(
-                (window.innerWidth * 0.9) / q.width,
-                (window.innerHeight * 0.9) / q.height,
-                1
-            );
+            const fullRect = fullImg.getBoundingClientRect();
             const croppedScale = croppedRect.width / q.selection.width;
 
-            const fullWidth = q.width * fullScale;
-            const fullHeight = q.height * fullScale;
-            const fullLeft = (window.innerWidth - fullWidth) / 2;
-            const fullTop = (window.innerHeight - fullHeight) / 2;
-
-            const targetX = fullLeft + q.selection.x * fullScale;
-            const targetY = fullTop + q.selection.y * fullScale;
-            const targetScale = fullScale / croppedScale;
+            // Calculate target position based on actual full image position
+            const targetX = fullRect.left + (q.selection.x / q.width) * fullRect.width;
+            const targetY = fullRect.top + (q.selection.y / q.height) * fullRect.height;
+            const targetScale = (fullRect.width / q.width) / croppedScale;
 
             const translateX = targetX - croppedRect.left;
             const translateY = targetY - croppedRect.top;
@@ -1115,13 +1170,62 @@ class ImagePuzzler {
             croppedImg.style.transform = \`translate(\${translateX}px, \${translateY}px) scale(\${targetScale})\`;
             questionText.style.opacity = '0';
 
-            setTimeout(() => {
-                fullImg.style.opacity = '';
-                fullImg.classList.add('visible');
-            }, 1200);
-            setTimeout(() => {
-                croppedImg.style.visibility = 'hidden';
-            }, 2200);
+            const revealAnim = q.revealAnimation || 'fade';
+
+            // Cropped image takes 1.2s to move to position, so reveal starts after that
+            if (revealAnim === 'fade') {
+                setTimeout(() => {
+                    fullImg.style.opacity = '';
+                    fullImg.classList.add('visible');
+                }, 1400);
+                setTimeout(() => {
+                    croppedImg.style.visibility = 'hidden';
+                }, 3200);
+            } else if (revealAnim === 'blur') {
+                // Blur animation - fade in blurred, then sharpen
+                fullImg.style.filter = 'blur(20px)';
+                fullImg.style.transition = 'opacity 1.5s ease-out';
+                setTimeout(() => {
+                    fullImg.style.opacity = '1';
+                    fullImg.classList.add('visible');
+                }, 1400);
+                setTimeout(() => {
+                    croppedImg.style.visibility = 'hidden';
+                    fullImg.style.transition = 'filter 1.5s ease-out';
+                    fullImg.style.filter = 'blur(0px)';
+                }, 2900);
+            } else if (revealAnim === 'box') {
+                const centerX = ((q.selection.x + q.selection.width/2) / q.width) * 100;
+                const centerY = ((q.selection.y + q.selection.height/2) / q.height) * 100;
+                const startW = (q.selection.width / q.width) * 50;
+                const startH = (q.selection.height / q.height) * 50;
+                setTimeout(() => {
+                    fullImg.style.clipPath = \`inset(\${centerY - startH}% \${100 - centerX - startW}% \${100 - centerY - startH}% \${centerX - startW}%)\`;
+                    fullImg.style.opacity = '1';
+                    fullImg.classList.add('visible');
+                    fullImg.style.transition = 'clip-path 2s ease-out';
+                    croppedImg.style.visibility = 'hidden';
+                    setTimeout(() => {
+                        fullImg.style.clipPath = 'inset(0% 0% 0% 0%)';
+                    }, 50);
+                }, 1400);
+            } else if (revealAnim === 'circle') {
+                const centerX = ((q.selection.x + q.selection.width/2) / q.width) * 100;
+                const centerY = ((q.selection.y + q.selection.height/2) / q.height) * 100;
+                const startRadius = Math.max(q.selection.width, q.selection.height) / Math.max(q.width, q.height) * 50;
+                setTimeout(() => {
+                    fullImg.style.clipPath = \`circle(\${startRadius}% at \${centerX}% \${centerY}%)\`;
+                    fullImg.style.opacity = '1';
+                    fullImg.classList.add('visible');
+                    fullImg.style.transition = 'clip-path 2s ease-out';
+                    croppedImg.style.visibility = 'hidden';
+                    setTimeout(() => {
+                        fullImg.style.clipPath = \`circle(150% at \${centerX}% \${centerY}%)\`;
+                    }, 50);
+                }, 1400);
+            }
+
+            const answerDelay = revealAnim === 'blur' ? 4400 : 3200;
             setTimeout(() => {
                 if (q.answer) {
                     answerText.style.opacity = '';
@@ -1129,7 +1233,7 @@ class ImagePuzzler {
                 }
                 canAdvance = true;
                 if (hasNextButton && nextBtn) nextBtn.classList.add('visible');
-            }, 2000);
+            }, answerDelay);
         }
 
         function nextQuestion() {
