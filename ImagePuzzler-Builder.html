@@ -764,10 +764,21 @@ class ImagePuzzler {
         this.dragStart = { x: 0, y: 0 };
         this.answerPosition = { x: 50, y: 50 };
         this.dialogResolve = null;
+        this.updateTimeout = null;
 
         this.initElements();
         this.initEventListeners();
         this.updateUI();
+    }
+
+    // Debounced update - waits for user to stop typing
+    debouncedUpdate() {
+        if (this.updateTimeout) {
+            clearTimeout(this.updateTimeout);
+        }
+        this.updateTimeout = setTimeout(() => {
+            this.updateCurrentImage();
+        }, 150);
     }
 
     // Custom dialog methods
@@ -922,11 +933,11 @@ class ImagePuzzler {
         document.addEventListener('mousemove', (e) => this.dragAnswer(e));
         document.addEventListener('mouseup', () => this.stopDraggingAnswer());
 
-        // Control inputs
-        this.questionInput.addEventListener('input', () => this.updateCurrentImage());
-        this.questionSize.addEventListener('input', () => this.updateCurrentImage());
-        this.answerInput.addEventListener('input', () => this.updateCurrentImage());
-        this.answerSize.addEventListener('input', () => this.updateCurrentImage());
+        // Control inputs - use debounced update for text inputs
+        this.questionInput.addEventListener('input', () => this.debouncedUpdate());
+        this.questionSize.addEventListener('input', () => this.debouncedUpdate());
+        this.answerInput.addEventListener('input', () => this.debouncedUpdate());
+        this.answerSize.addEventListener('input', () => this.debouncedUpdate());
         this.answerColor.addEventListener('input', () => this.updateCurrentImage());
         this.answerOutline.addEventListener('change', () => this.updateCurrentImage());
         this.revealAnimation.addEventListener('change', () => this.updateCurrentImage());
