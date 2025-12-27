@@ -483,6 +483,7 @@ body {
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
     margin-top: 20px;
     transition: opacity 0.4s;
+    white-space: nowrap;
 }
 
 .preview-full-image {
@@ -1337,12 +1338,31 @@ class ImagePuzzler {
             croppedImg.style.height = displayHeight + 'px';
             croppedImg.style.opacity = '0';
 
-            // Question text
+            // Question text - scale with cropped image but cap to max size and screen width
             const questionEl = document.createElement('div');
             questionEl.className = 'preview-question';
             questionEl.textContent = image.question || '';
-            questionEl.style.fontSize = (image.questionSize * croppedScale) + 'px';
+            questionEl.style.whiteSpace = 'nowrap';
+            // Start with scaled size, but cap at the user-specified max size
+            let questionFontSize = Math.min(image.questionSize * croppedScale, image.questionSize);
+            questionEl.style.fontSize = questionFontSize + 'px';
             questionEl.style.opacity = '0';
+
+            // Measure text width and reduce font if needed to fit screen
+            if (image.question) {
+                // Temporarily add to DOM to measure (positioned off-screen)
+                questionEl.style.position = 'absolute';
+                questionEl.style.left = '-9999px';
+                document.body.appendChild(questionEl);
+                const maxQuestionWidth = window.innerWidth * 0.95;
+                while (questionEl.offsetWidth > maxQuestionWidth && questionFontSize > 10) {
+                    questionFontSize *= 0.9;
+                    questionEl.style.fontSize = questionFontSize + 'px';
+                }
+                document.body.removeChild(questionEl);
+                questionEl.style.position = '';
+                questionEl.style.left = '';
+            }
 
             // Full image (hidden initially)
             const fullImg = document.createElement('img');
@@ -1726,6 +1746,7 @@ class ImagePuzzler {
             margin-top: 20px;
             text-align: center;
             transition: opacity 0.4s;
+            white-space: nowrap;
         }
         .full-container {
             position: absolute;
@@ -1884,9 +1905,17 @@ class ImagePuzzler {
                 croppedImg.style.width = (q.selection.width * croppedDisplayScale) + 'px';
                 croppedImg.style.height = (q.selection.height * croppedDisplayScale) + 'px';
 
-                // Set question
+                // Set question - scale with cropped image but cap to max size and screen width
                 questionText.textContent = q.question;
-                questionText.style.fontSize = (q.questionSize * croppedDisplayScale) + 'px';
+                // Start with scaled size, but cap at the user-specified max size
+                let questionFontSize = Math.min(q.questionSize * croppedDisplayScale, q.questionSize);
+                questionText.style.fontSize = questionFontSize + 'px';
+                // Reduce font size if text exceeds viewport width
+                const maxTextWidth = window.innerWidth * 0.95;
+                while (questionText.offsetWidth > maxTextWidth && questionFontSize > 10) {
+                    questionFontSize *= 0.9;
+                    questionText.style.fontSize = questionFontSize + 'px';
+                }
 
                 // Set full image
                 fullImg.src = q.dataUrl;
