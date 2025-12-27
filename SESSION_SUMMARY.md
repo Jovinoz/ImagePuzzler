@@ -15,7 +15,7 @@ ImagePuzzler is a web application for creating interactive image-based quiz game
 - `style.css` - Builder app styles
 - `app.js` - Builder app JavaScript (main logic)
 - `jszip.min.js` - Library for ZIP file handling
-- `ImagePuzzler-Builder.html` - Standalone offline builder (163KB, all-in-one)
+- `ImagePuzzler-Builder.html` - Standalone offline builder (165KB, all-in-one)
 - `PRODUCT_SPECIFICATION.md` - Detailed product spec
 - `SESSION_SUMMARY.md` - This file
 
@@ -76,6 +76,18 @@ Installed during this session:
 ### Small Cropped Images
 - Small selections now scale UP to fill viewport (not just down)
 - Question text scales proportionally
+
+### Answer Text Wrapping in Preview
+- Added `white-space: nowrap` to preview answer text
+- Long answers now stay on one line (matching builder display)
+- Fixed position mismatch caused by text wrapping
+
+### Smart Question Text Sizing
+- Question font scales proportionally with cropped image size
+- Font size is capped at user-specified maximum (from form field)
+- Long questions automatically shrink to fit screen width
+- Prevents oversized text for small crop areas with short questions
+- The font size field now acts as the maximum size
 
 ## Known Issues
 
